@@ -1,0 +1,19 @@
+{
+    "name": "sandbox/user-service",
+    "type": "project",
+    "require": {
+        "php": ">=8.3"
+    },
+    "require-dev": {
+        "pact-foundation/pact-php": "^10.0"
+    },
+    "autoload": {
+        "psr-4": { "UserService\\": "src/" }
+    },
+    "config": {
+        "allow-plugins": {
+            "pact-foundation/composer-downloads-plugin": true,
+            "php-http/discovery": true
+        }
+    }
+}

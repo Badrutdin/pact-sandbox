@@ -1,0 +1,6 @@
+docker-compose.override.yml
+consumer/vendor/
+consumer/pacts/
+consumer/.phpunit.cache/
+provider/vendor/
+.idea/

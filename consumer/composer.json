@@ -1,0 +1,27 @@
+{
+    "name": "sandbox/order-service",
+    "type": "project",
+    "require": {
+        "php": ">=8.3"
+    },
+    "require-dev": {
+        "pact-foundation/pact-php": "^10.0",
+        "phpunit/phpunit": "^11.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "OrderService\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "OrderService\\Tests\\": "tests/"
+        }
+    },
+    "config": {
+        "allow-plugins": {
+            "php-http/discovery": true,
+            "pact-foundation/composer-downloads-plugin": true
+        }
+    }
+}

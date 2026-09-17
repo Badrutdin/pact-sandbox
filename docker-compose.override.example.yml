@@ -1,0 +1,6 @@
+# cp docker-compose.override.example.yml docker-compose.override.yml
+# Порты наружу нужны только чтобы посмотреть UI брокера в браузере.
+services:
+  broker:
+    ports:
+      - "9292:9292"

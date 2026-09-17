@@ -1,0 +1,82 @@
+services:
+  broker-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: pact
+      POSTGRES_PASSWORD: pact
+      POSTGRES_DB: pact
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pact"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  # Pact Broker: хранит контракты, результаты верификаций и кто где задеплоен.
+  broker:
+    image: pactfoundation/pact-broker:latest
+    depends_on:
+      broker-db:
+        condition: service_healthy
+    environment:
+      PACT_BROKER_DATABASE_ADAPTER: postgres
+      PACT_BROKER_DATABASE_HOST: broker-db
+      PACT_BROKER_DATABASE_NAME: pact
+      PACT_BROKER_DATABASE_USERNAME: pact
+      PACT_BROKER_DATABASE_PASSWORD: pact
+      PACT_BROKER_BASIC_AUTH_USERNAME: pact
+      PACT_BROKER_BASIC_AUTH_PASSWORD: pact
+      PACT_BROKER_ALLOW_PUBLIC_READ: "true"
+      PACT_BROKER_LOG_LEVEL: WARN
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:9292/diagnostic/status/heartbeat || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  # Настоящий user-service (PROVIDER).
+  provider:
+    image: pact-sandbox-php
+    working_dir: /app
+    volumes:
+      - ./provider:/app
+    environment:
+      BREAK_CONTRACT: "${BREAK_CONTRACT:-0}"
+    # Без healthcheck намеренно: он открывал сокет каждые 3 секунды и засорял
+    # лог строками "Closed without sending a request", из-за чего в `make logs`
+    # было не разглядеть реальные запросы верификатора.
+    command: php -S 0.0.0.0:8000 -t public
+
+  # order-service (CONSUMER): контейнер под тесты, постоянно не крутится.
+  consumer:
+    image: pact-sandbox-php
+    working_dir: /app
+    volumes:
+      - ./consumer:/app
+    command: sleep infinity
+
+  # Верификатор провайдера - отдельный запуск, не сервис.
+  verifier:
+    image: pact-sandbox-php
+    working_dir: /app
+    volumes:
+      - ./provider:/app
+    environment:
+      PACT_BROKER_BASE_URL: http://broker:9292
+      PACT_BROKER_USERNAME: pact
+      PACT_BROKER_PASSWORD: pact
+      PROVIDER_HOST: provider
+      PROVIDER_VERSION: "${PROVIDER_VERSION:-1.0.0}"
+    profiles: ["tools"]
+    command: php verify/verify.php
+
+  # Официальный CLI брокера: publish / can-i-deploy / record-deployment.
+  pact-cli:
+    image: pactfoundation/pact-cli:latest
+    volumes:
+      - ./consumer/pacts:/pacts
+    environment:
+      PACT_BROKER_BASE_URL: http://broker:9292
+      PACT_BROKER_USERNAME: pact
+      PACT_BROKER_PASSWORD: pact
+    profiles: ["tools"]
+    entrypoint: ["pact-broker"]
