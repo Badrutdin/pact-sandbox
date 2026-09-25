@@ -19,6 +19,9 @@ order-service (consumer)                     user-service (provider)
 Интерактивный таймлайн всех 13 шагов (кто работает, кто спит, что создаётся и где
 происходит сравнение): **https://badrutdin.github.io/pact-sandbox/**
 
+Как consumer-тест устроен под капотом (PHP-поток, граница FFI, Rust mock-сервер, verify):
+**https://badrutdin.github.io/pact-sandbox/anatomy.html**
+
 ## Что где лежит
 
 | Файл | Роль |

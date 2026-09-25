@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Анатомия consumer-теста Pact</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --bg:#f5f6f8;--surface:#ffffff;--ink:#1c2128;--muted:#5b6470;--line:#d6dae1;--line-strong:#aab1bb;
+  --php:#2f5d9e;--php-soft:#e6eef9;--rust:#b7410e;--rust-soft:#fbeadf;--wire:#1f7a4d;--wire-soft:#e3f2e9;
+  --warn:#9a5b00;--warn-soft:#fff3d6;--code-bg:#eef0f3;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#14171c;--surface:#1c2027;--ink:#e6e9ee;--muted:#9aa3b0;--line:#2c323b;--line-strong:#4a525d;
+    --php:#7ea6e6;--php-soft:#1b2a40;--rust:#f0865a;--rust-soft:#3a2216;--wire:#5fc48e;--wire-soft:#173226;
+    --warn:#e6b45c;--warn-soft:#3a2d12;--code-bg:#242a33;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#14171c;--surface:#1c2027;--ink:#e6e9ee;--muted:#9aa3b0;--line:#2c323b;--line-strong:#4a525d;
+  --php:#7ea6e6;--php-soft:#1b2a40;--rust:#f0865a;--rust-soft:#3a2216;--wire:#5fc48e;--wire-soft:#173226;
+  --warn:#e6b45c;--warn-soft:#3a2d12;--code-bg:#242a33;
+}
+body{background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;font-size:15px;line-height:1.55;padding-block:32px 64px;padding-inline:20px}
+.wrap{max-width:1040px;margin:0 auto;display:flex;flex-direction:column;gap:40px}
+h1,h2,h3{text-wrap:balance;margin:0;font-weight:600;line-height:1.2}
+h1{font-size:30px}h2{font-size:21px}h3{font-size:16px}
+p{margin:0;max-width:72ch}
+code,pre{font-family:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px}
+code{background:var(--code-bg);padding:1px 5px;border-radius:4px}
+pre{background:var(--code-bg);padding:12px 14px;border-radius:6px;overflow-x:auto;margin:0;line-height:1.5}
+pre code{background:none;padding:0}
+.eyebrow{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:500}
+header{display:flex;flex-direction:column;gap:10px}
+header p{color:var(--muted);font-size:16px}
+.thesis{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.thesis div{border:1px solid var(--line);border-radius:8px;padding:14px 16px;background:var(--surface);display:flex;flex-direction:column;gap:6px}
+.thesis b{font-weight:600}
+.thesis small{color:var(--muted)}
+figure{margin:0;display:flex;flex-direction:column;gap:10px}
+figure .frame{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px;overflow-x:auto}
+figure svg{display:block;max-width:100%;height:auto;min-width:720px;color:var(--ink)}
+figcaption{color:var(--muted);font-size:13.5px;max-width:80ch}
+.legend{display:flex;flex-wrap:wrap;gap:16px;font-size:13px;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{display:inline-block;width:22px;height:0;border-top:2px solid var(--ink)}
+.legend i.ffi{border-top-style:dashed;border-color:var(--rust)}
+.legend i.tcp{border-color:var(--wire)}
+.legend i.php{border-color:var(--php)}
+.steps{display:flex;flex-direction:column;gap:22px}
+.step{display:grid;grid-template-columns:56px 1fr;gap:16px;border-top:1px solid var(--line);padding-top:20px}
+.step .n{font-family:"IBM Plex Mono",monospace;font-size:13px;color:var(--muted);padding-top:4px}
+.step .n b{display:block;font-size:22px;color:var(--ink);font-weight:500;line-height:1}
+.step .body{display:flex;flex-direction:column;gap:12px}
+.step .cols{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.step .cols>div{display:flex;flex-direction:column;gap:8px}
+.tag{display:inline-block;font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;font-weight:500;padding:2px 8px;border-radius:999px;align-self:flex-start}
+.tag.php{background:var(--php-soft);color:var(--php)}
+.tag.rust{background:var(--rust-soft);color:var(--rust)}
+.tag.wire{background:var(--wire-soft);color:var(--wire)}
+.tag.none{background:var(--code-bg);color:var(--muted)}
+.callout{border-left:3px solid var(--warn);background:var(--warn-soft);padding:12px 16px;border-radius:0 8px 8px 0;display:flex;flex-direction:column;gap:8px}
+.callout p{max-width:none}
+.nomagic{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.nomagic div{border:1px solid var(--line);border-radius:8px;padding:14px 16px;background:var(--surface);display:flex;flex-direction:column;gap:6px}
+.nomagic .q{font-weight:600}
+.nomagic .a{color:var(--muted)}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-weight:500;color:var(--muted);font-size:12.5px;letter-spacing:.04em;text-transform:uppercase}
+td code{white-space:nowrap}
+.ok{color:var(--wire);font-weight:600}.bad{color:var(--rust);font-weight:600}
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
+.ffi{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px}
+.ffi div{border:1px solid var(--line);border-radius:6px;padding:10px 12px;background:var(--surface);display:flex;flex-direction:column;gap:4px;font-size:13.5px}
+.ffi code{align-self:flex-start;color:var(--rust);background:var(--rust-soft)}
+.ffi span{color:var(--muted)}
+@media (max-width:760px){.thesis,.step .cols,.nomagic{grid-template-columns:1fr}.step{grid-template-columns:44px 1fr}}
+@media (prefers-reduced-motion:no-preference){svg .pulse{animation:pulse 2.4s ease-in-out infinite}@keyframes pulse{0%,100%{opacity:.35}50%{opacity:1}}}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+<header>
+  <span class="eyebrow">pact-php 10 · ядро pact_ffi 0.4 · монолит → payment-service · <a href="index.html" style="color:inherit">← весь цикл контракта</a></span>
+  <h1>Анатомия consumer-теста Pact</h1>
+  <p>Что на самом деле происходит между <code>willRespondWith()</code>, вызовом клиента и <code>verify()</code>. Без подписчиков, событий и слежения за «следующей строкой»: два потока в одном процессе, один номер порта между ними.</p>
+</header>
+
+<section class="thesis">
+  <div><b>Ничего не следит за твоим кодом</b><small>Pact не регистрирует hooks в PHPUnit и не перехватывает вызовы. Он знает только то, что ему передали через FFI, и то, что пришло на его порт.</small></div>
+  <div><b>Mock-сервер это отдельный поток</b><small>Rust-поток внутри процесса <code>php</code>, слушает <code>127.0.0.1:&lt;порт&gt;</code>. Тест и сервер работают одновременно.</small></div>
+  <div><b>verify() задаёт три вопроса</b><small>«все ожидания получили запрос?», «были ли лишние или неверные?», «записать json и остановиться». Ответ «нет» на первые два = красный тест.</small></div>
+</section>
+
+<figure>
+  <div class="frame">
+  <svg viewBox="0 0 1040 900" role="img" aria-label="Последовательность: PHP-тест описывает ожидание, через FFI передаёт его в Rust-ядро, ядро поднимает mock-сервер на порту, клиент бандла шлёт туда настоящий HTTP-запрос, ядро отвечает примером и ведёт журнал, verify спрашивает журнал, пишет json и останавливает сервер." xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="currentColor"/></marker>
+      <marker id="ah-rust" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--rust)"/></marker>
+      <marker id="ah-wire" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--wire)"/></marker>
+      <marker id="ah-php" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--php)"/></marker>
+    </defs>
+    <!-- lane grounds -->
+    <rect x="20" y="20" width="560" height="860" rx="10" fill="var(--php-soft)" opacity=".55"/>
+    <rect x="620" y="20" width="400" height="860" rx="10" fill="var(--rust-soft)" opacity=".55"/>
+    <text x="300" y="44" text-anchor="middle" font-size="12" letter-spacing="1.5" fill="var(--php)" font-weight="600">PHP-ПОТОК: PROCESS PHPUNIT</text>
+    <text x="820" y="44" text-anchor="middle" font-size="12" letter-spacing="1.5" fill="var(--rust)" font-weight="600">RUST-ПОТОК: PACT.SO (ТОТ ЖЕ ПРОЦЕСС)</text>
+    <!-- FFI boundary -->
+    <line x1="600" y1="20" x2="600" y2="880" stroke="var(--rust)" stroke-width="1.5" stroke-dasharray="6 5"/>
+    <text x="600" y="66" text-anchor="middle" font-size="11" fill="var(--rust)">граница FFI</text>
+    <text x="600" y="80" text-anchor="middle" font-size="11" fill="var(--rust)">(вызовы C-функций)</text>
+
+    <!-- actors -->
+    <g font-size="13" font-weight="600" fill="currentColor">
+      <rect x="60" y="90" width="200" height="40" rx="6" fill="var(--surface)" stroke="var(--php)" stroke-width="1.5"/>
+      <text x="160" y="115" text-anchor="middle">Тест (PactConsumerTestCase)</text>
+      <rect x="340" y="90" width="200" height="40" rx="6" fill="var(--surface)" stroke="var(--php)" stroke-width="1.5"/>
+      <text x="440" y="115" text-anchor="middle">Клиент бандла (прод-код)</text>
+      <rect x="660" y="90" width="150" height="40" rx="6" fill="var(--surface)" stroke="var(--rust)" stroke-width="1.5"/>
+      <text x="735" y="115" text-anchor="middle">Реестр ожиданий</text>
+      <rect x="850" y="90" width="150" height="40" rx="6" fill="var(--surface)" stroke="var(--rust)" stroke-width="1.5"/>
+      <text x="925" y="115" text-anchor="middle">Mock HTTP-сервер</text>
+    </g>
+    <!-- lifelines -->
+    <g stroke="var(--line-strong)" stroke-width="1" stroke-dasharray="3 4">
+      <line x1="160" y1="130" x2="160" y2="860"/>
+      <line x1="440" y1="130" x2="440" y2="860"/>
+      <line x1="735" y1="130" x2="735" y2="860"/>
+    </g>
+    <!-- mock server lifeline: exists only between step 3 and step 9 -->
+    <line x1="925" y1="130" x2="925" y2="300" stroke="var(--line-strong)" stroke-width="1" stroke-dasharray="3 4"/>
+    <rect x="915" y="300" width="20" height="500" rx="4" fill="var(--wire-soft)" stroke="var(--wire)" stroke-width="1.5" class="pulse"/>
+    <text x="960" y="560" font-size="11" fill="var(--wire)" transform="rotate(90 960 560)" text-anchor="middle">слушает 127.0.0.1:41234</text>
+    <line x1="925" y1="800" x2="925" y2="860" stroke="var(--line-strong)" stroke-width="1" stroke-dasharray="3 4"/>
+
+    <!-- step numbers helper: circle + text -->
+    <!-- 1 -->
+    <g>
+      <circle cx="40" cy="170" r="11" fill="var(--ink)"/><text x="40" y="174" text-anchor="middle" font-size="11" fill="var(--bg)" font-weight="600">1</text>
+      <rect x="70" y="150" width="180" height="40" rx="5" fill="var(--surface)" stroke="var(--php)"/>
+      <text x="160" y="167" text-anchor="middle" font-size="11.5" fill="currentColor">given · uponReceiving · with</text>
+      <text x="160" y="182" text-anchor="middle" font-size="11" fill="var(--muted)">только PHP-объект Interaction</text>
+    </g>
+    <!-- 2 -->
+    <g>
+      <circle cx="40" cy="230" r="11" fill="var(--ink)"/><text x="40" y="234" text-anchor="middle" font-size="11" fill="var(--bg)" font-weight="600">2</text>
+      <line x1="160" y1="230" x2="733" y2="230" stroke="var(--rust)" stroke-width="1.5" marker-end="url(#ah-rust)"/>
+      <text x="300" y="222" font-size="11.5" fill="currentColor" font-family="IBM Plex Mono, monospace">willRespondWith() → pactffi_with_request, pactffi_response_*</text>
+      <rect x="660" y="240" width="150" height="34" rx="4" fill="var(--surface)" stroke="var(--rust)"/>
+      <text x="735" y="254" text-anchor="middle" font-size="11" fill="currentColor">#1: POST /exchange-rate/latest</text>
+      <text x="735" y="268" text-anchor="middle" font-size="11" fill="var(--muted)">+ matchingRules ответа</text>
+    </g>
+    <!-- 3 -->
+    <g>
+      <circle cx="40" cy="300" r="11" fill="var(--ink)"/><text x="40" y="304" text-anchor="middle" font-size="11" fill="var(--bg)" font-weight="600">3</text>
+      <line x1="160" y1="300" x2="913" y2="300" stroke="var(--rust)" stroke-width="1.5" marker-end="url(#ah-rust)"/>
+      <text x="300" y="292" font-size="11.5" fill="currentColor" font-family="IBM Plex Mono, monospace">pactffi_create_mock_server_for_transport(pact, "127.0.0.1", port)</text>
+      <text x="880" y="322" text-anchor="end" font-size="11" fill="var(--wire)">spawn поток · bind() · accept()</text>
+      <line x1="913" y1="340" x2="162" y2="340" stroke="var(--rust)" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#ah-rust)"/>
+      <text x="540" y="356" text-anchor="middle" font-size="11.5" fill="currentColor" font-family="IBM Plex Mono, monospace">return 41234  (порт, который выбрала ОС)</text>
+    </g>
+    <!-- 4 -->
+    <g>
+      <circle cx="40" cy="400" r="11" fill="var(--ink)"/><text x="40" y="404" text-anchor="middle" font-size="11" fill="var(--bg)" font-weight="600">4</text>
+      <line x1="160" y1="400" x2="438" y2="400" stroke="var(--php)" stroke-width="1.5" marker-end="url(#ah-php)"/>
+      <text x="300" y="392" text-anchor="middle" font-size="11.5" fill="currentColor" font-family="IBM Plex Mono, monospace">getLatestExchangeRate(Euro)</text>
+      <text x="300" y="416" text-anchor="middle" font-size="11" fill="var(--muted)">клиент про Pact не знает: base_uri из env = 127.0.0.1:41234</text>
+    </g>
+    <!-- 5 -->
+    <g>
+      <circle cx="40" cy="470" r="11" fill="var(--ink)"/><text x="40" y="474" text-anchor="middle" font-size="11" fill="var(--bg)" font-weight="600">5</text>
+      <line x1="440" y1="470" x2="913" y2="470" stroke="var(--wire)" stroke-width="2.5" marker-end="url(#ah-wire)"/>
+      <text x="676" y="461" text-anchor="middle" font-size="11.5" fill="var(--wire)" font-weight="600">TCP · POST /inner-api/payment-service/exchange-rate/latest</text>
+      <text x="676" y="486" text-anchor="middle" font-size="11" fill="var(--wire)">{"sourceCurrency":null,"targetCurrency":"eur"} — обычный HTTP, не FFI</text>
+    </g>
+    <!-- 6 -->
+    <g>
+      <circle cx="40" cy="540" r="11" fill="var(--ink)"/><text x="40" y="544" text-anchor="middle" font-size="11" fill="var(--bg)" font-weight="600">6</text>
+      <line x1="913" y1="540" x2="737" y2="540" stroke="var(--rust)" stroke-width="1.5" marker-end="url(#ah-rust)"/>
+      <text x="825" y="532" text-anchor="middle" font-size="11" fill="currentColor">сравнить с #1</text>
+      <rect x="660" y="552" width="150" height="46" rx="4" fill="var(--surface)" stroke="var(--rust)"/>
+      <text x="735" y="567" text-anchor="middle" font-size="11" fill="currentColor">журнал сервера:</text>
+      <text x="735" y="581" text-anchor="middle" font-size="11" fill="var(--wire)">#1 посещена ✓</text>
+      <text x="735" y="594" text-anchor="middle" font-size="11" fill="var(--muted)">mismatches: []</text>
+    </g>
+    <!-- 7 -->
+    <g>
+      <circle cx="40" cy="630" r="11" fill="var(--ink)"/><text x="40" y="634" text-anchor="middle" font-size="11" fill="var(--bg)" font-weight="600">7</text>
+      <line x1="913" y1="630" x2="442" y2="630" stroke="var(--wire)" stroke-width="2.5" marker-end="url(#ah-wire)"/>
+      <text x="676" y="622" text-anchor="middle" font-size="11.5" fill="var(--wire)" font-weight="600">200 · [{"rate":"0.92", "date":…}]  (наш пример из матчеров)</text>
+      <line x1="440" y1="660" x2="162" y2="660" stroke="var(--php)" stroke-width="1.5" marker-end="url(#ah-php)"/>
+      <text x="300" y="652" text-anchor="middle" font-size="11.5" fill="currentColor" font-family="IBM Plex Mono, monospace">ExchangeRateDtoContainer</text>
+      <text x="300" y="676" text-anchor="middle" font-size="11" fill="var(--muted)">десериализация прод-сериализатором: упадёт здесь, если пример «не переваривается»</text>
+    </g>
+    <!-- 8 -->
+    <g>
+      <circle cx="40" cy="730" r="11" fill="var(--ink)"/><text x="40" y="734" text-anchor="middle" font-size="11" fill="var(--bg)" font-weight="600">8</text>
+      <line x1="160" y1="730" x2="733" y2="730" stroke="var(--rust)" stroke-width="1.5" marker-end="url(#ah-rust)"/>
+      <text x="300" y="722" font-size="11.5" fill="currentColor" font-family="IBM Plex Mono, monospace">verify() → pactffi_mock_server_matched(41234)</text>
+      <line x1="733" y1="756" x2="162" y2="756" stroke="var(--rust)" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#ah-rust)"/>
+      <text x="446" y="772" text-anchor="middle" font-size="11.5" fill="currentColor">true: каждая interaction посещена, mismatches пуст → pactffi_write_pact_file → json на диск</text>
+    </g>
+    <!-- 9 -->
+    <g>
+      <circle cx="40" cy="820" r="11" fill="var(--ink)"/><text x="40" y="824" text-anchor="middle" font-size="11" fill="var(--bg)" font-weight="600">9</text>
+      <line x1="160" y1="820" x2="913" y2="820" stroke="var(--rust)" stroke-width="1.5" marker-end="url(#ah-rust)"/>
+      <text x="300" y="812" font-size="11.5" fill="currentColor" font-family="IBM Plex Mono, monospace">pactffi_cleanup_mock_server(41234)</text>
+      <text x="880" y="842" text-anchor="end" font-size="11" fill="var(--muted)">поток остановлен, порт свободен</text>
+    </g>
+  </svg>
+  </div>
+  <div class="legend">
+    <span><i class="ffi"></i>вызов через FFI (PHP → C → Rust, синхронно)</span>
+    <span><i class="tcp"></i>настоящий HTTP по TCP через loopback</span>
+    <span><i class="php"></i>обычный вызов PHP</span>
+  </div>
+  <figcaption>Один тест-метод от начала до конца. Левая половина живёт в PHP-потоке PHPUnit, правая в Rust-потоке библиотеки <code>pact.so</code>, загруженной тем же процессом через FFI. Зелёная полоса на правом краю показывает, когда именно существует mock-сервер: с шага 3 до шага 9. Всё, что между ними в PHP-коде, для сервера невидимо, кроме пакетов, пришедших на его порт.</figcaption>
+</figure>
+
+<section class="steps">
+  <h2>Каждый шаг: что в коде, что на самом деле</h2>
+
+  <div class="step"><div class="n"><b>1</b>PHP</div><div class="body">
+    <h3>Описание ожидания: пока просто объект</h3>
+    <div class="cols">
+      <div><span class="tag php">PHP-поток</span><pre><code>$this-&gt;builder
+    -&gt;given('latest USD-&gt;EUR exchange rate exists')
+    -&gt;uponReceiving('a request for the latest exchange rates to EUR')
+    -&gt;with($request)</code></pre></div>
+      <div><span class="tag none">ничего не происходит</span><p><code>InteractionBuilder</code> складывает state, описание, запрос и ответ в PHP-объект <code>Interaction</code>. Ни сети, ни сервера, ни FFI. Это билдер данных, как <code>QueryBuilder</code> до <code>getQuery()</code>.</p></div>
+    </div>
+  </div></div>
+
+  <div class="step"><div class="n"><b>2</b>FFI</div><div class="body">
+    <h3><code>willRespondWith()</code>: ожидание уезжает в ядро</h3>
+    <div class="cols">
+      <div><span class="tag php">pact-php, InteractionDriver</span><pre><code>public function registerInteraction(Interaction $i, bool $startMockServer = true): bool
+{
+    $this-&gt;pactDriver-&gt;setUp();
+    $this-&gt;newInteraction($i);     // pactffi_new_interaction
+    $this-&gt;given($i);              // pactffi_given
+    $this-&gt;uponReceiving($i);      // pactffi_upon_receiving
+    $this-&gt;withRequest($i);        // pactffi_with_request + body + headers
+    $this-&gt;willRespondWith($i);    // pactffi_response_status + body
+    ...
+    if ($startMockServer) {
+        $this-&gt;mockServer-&gt;start();
+    }
+}</code></pre></div>
+      <div><span class="tag rust">Rust: реестр</span><p>Каждый метод драйвера это вызов C-функции из <code>pact.so</code>. После них в памяти ядра лежит структура «pact»: список interactions с их matchingRules (регулярка для <code>rate</code>, формат даты, <code>min: 1</code> для массива). Это ещё не сервер, это данные, с которыми сервер будет сравнивать.</p><p>pact-php здесь тонкая обёртка: своей логики сравнения у него нет вообще.</p></div>
+    </div>
+  </div></div>
+
+  <div class="step"><div class="n"><b>3</b>FFI</div><div class="body">
+    <h3>Старт сервера: поток внутри процесса <code>php</code></h3>
+    <div class="cols">
+      <div><span class="tag php">pact-php, MockServer::start()</span><pre><code>$port = $this-&gt;client-&gt;createMockServerForTransport(
+    $this-&gt;pactDriver-&gt;getPact()-&gt;handle,
+    $this-&gt;config-&gt;getHost(),   // 127.0.0.1
+    $this-&gt;config-&gt;getPort(),   // 0 = выбери сам
+    'http', null
+);
+if ($port &lt; 0) throw new MockServerNotStartedException($port);
+$this-&gt;config-&gt;setPort($port); // 41234</code></pre></div>
+      <div><span class="tag rust">Rust: mock-сервер</span><p>Ядро создаёт поток (Rust-поток, не PHP), который делает <code>bind()</code> на <code>127.0.0.1:0</code>, получает от ОС свободный порт и уходит в <code>accept()</code>. Порт возвращается в PHP.</p><p>С этой миллисекунды на порту слушает обычный HTTP-сервер. Ему всё равно, кто постучит: <code>curl</code>, Symfony HttpClient, браузер. Он работает <b>параллельно</b> с твоим тестом: PHP-код идёт дальше, сервер ждёт соединений.</p></div>
+    </div>
+    <div class="callout"><b>Почему в нашем базовом классе порт выбирается до boot кернела</b><p>Scoped-клиент бандла читает <code>MONOLITH_API_BASE_URI</code> при первом создании и живёт до конца кернела. Поэтому <code>PactConsumerTestCase</code> сам берёт свободный порт у ОС в <code>setUpBeforeClass()</code>, записывает его в env, бутит кернел, а потом просит ядро поднять сервер именно на этом порту. Механика та же, отличается только момент выбора числа.</p></div>
+  </div></div>
+
+  <div class="step"><div class="n"><b>4–5</b>TCP</div><div class="body">
+    <h3>Вызов клиента: обычный HTTP через loopback</h3>
+    <div class="cols">
+      <div><span class="tag php">тест → прод-код бандла</span><pre><code>self::getContainer()-&gt;get(ExchangeRateApiProvider::class)
+    -&gt;getLatestExchangeRate(targetCurrency: CurrencyEnum::Euro);</code></pre><p>Клиент сериализует DTO своим <code>PaymentServiceSerializer</code>, берёт <code>base_uri</code> из env и делает <code>POST</code> через curl. Для него это ничем не отличается от похода в nginx.</p></div>
+      <div><span class="tag wire">TCP, не FFI</span><p>Пакет уходит на <code>127.0.0.1:41234</code>. Rust-поток принимает соединение, сравнивает запрос с каждой interaction в реестре: метод, путь, заголовки из ожидания, тело по правилам.</p><p>Совпало: отвечает статусом и телом-примером из <code>willRespondWith</code>, отмечает interaction как «посещённую». Не совпало: отвечает 500 и пишет mismatch в журнал.</p></div>
+    </div>
+    <div class="callout"><b>Как библиотека «следит», что вызов стоит следующей строкой</b><p>Никак. Порядок важен только физически: нельзя постучать в порт, на котором ещё никто не слушает. Между шагом 3 и вызовом клиента может быть <code>sleep(10)</code>, сто других строк или запрос из другого процесса, результат тот же. Если запроса не будет вовсе, журнал останется пустым, и это вскроется на шаге 8.</p></div>
+  </div></div>
+
+  <div class="step"><div class="n"><b>6–7</b>TCP</div><div class="body">
+    <h3>Ответ и десериализация</h3>
+    <div class="cols">
+      <div><span class="tag rust">Rust отдаёт пример</span><p>В ответе ровно те значения, которые мы положили в матчеры: <code>"rate":"0.92"</code>, <code>"date":"2026-09-17T00:00:00+00:00"</code>. Матчеры на этом шаге не участвуют, они понадобятся провайдеру при верификации.</p></div>
+      <div><span class="tag php">клиент разбирает ответ</span><p><code>NumberNormalizer</code> бандла превращает <code>"0.92"</code> в <code>BcMath\Number</code>, <code>BackedEnumNormalizer</code> делает из <code>"eur"</code> enum. Если бы пример был числом <code>0.92</code>, тест упал бы здесь с исключением сериализатора, ещё до <code>verify()</code>. Это единственное место, где проверяется «consumer умеет читать то, что обещал».</p></div>
+    </div>
+  </div></div>
+
+  <div class="step"><div class="n"><b>8</b>FFI</div><div class="body">
+    <h3><code>verify()</code>: три вопроса ядру</h3>
+    <div class="cols">
+      <div><span class="tag php">pact-php, MockServer::verify()</span><pre><code>try {
+    $matched = $this-&gt;isMatched();          // pactffi_mock_server_matched(port)
+    if ($matched) {
+        $this-&gt;writePact();                 // pactffi_write_pact_file (merge!)
+    } else {
+        $mismatches = $this-&gt;getMismatches(); // pactffi_mock_server_mismatches(port)
+    }
+    return new VerifyResult($matched, $mismatches ?? '');
+} finally {
+    $this-&gt;cleanUp();                       // шаг 9
+}</code></pre></div>
+      <div><span class="tag rust">Rust смотрит в журнал</span><p><code>matched = true</code> только если <b>каждая</b> зарегистрированная interaction получила хотя бы один запрос <b>и</b> ни один пришедший запрос не остался без совпадения.</p><p>Только при <code>true</code> ядро пишет <code>monolith-payment-service.json</code>. Пишет в режиме merge: дописывает interactions в существующий файл, поэтому <code>make pact-consumer</code> сначала удаляет старые json.</p><p>Наш единственный assert в тесте это <code>assertTrue($matched)</code>.</p></div>
+    </div>
+  </div></div>
+
+  <div class="step"><div class="n"><b>9</b>FFI</div><div class="body">
+    <h3>Остановка: порт свободен</h3>
+    <div class="cols">
+      <div><span class="tag php">MockServer::cleanUp()</span><pre><code>$success = $this-&gt;client-&gt;cleanupMockServer($this-&gt;config-&gt;getPort());
+if (!$success) {
+    trigger_error('Can not clean up mock server ...', E_USER_WARNING);
+}</code></pre></div>
+      <div><span class="tag rust">Rust гасит поток</span><p><code>pactffi_cleanup_mock_server</code> останавливает поток и закрывает сокет. Вызов идёт в <code>finally</code>, то есть и при красном результате. Если тест упал до <code>verify()</code>, порт остался бы занят, поэтому <code>tearDown()</code> базового класса проверяет, слушает ли кто-то порт, и при необходимости вызывает <code>verify()</code> сам.</p></div>
+    </div>
+  </div></div>
+</section>
+
+<section style="display:flex;flex-direction:column;gap:14px">
+  <h2>Чего здесь нет</h2>
+  <div class="nomagic">
+    <div><span class="q">Подписчики на PHPUnit?</span><span class="a">Нет. Pact не регистрирует ни extensions, ни listeners, ни <code>#[Before]</code>-хуки. PHPUnit вызывает <code>setUp</code>, метод, <code>tearDown</code> как для любого теста. Всё, что делает <code>PactConsumerTestCase</code>, это штатные хуки нашего класса.</span></div>
+    <div><span class="q">Перехват HttpClient?</span><span class="a">Нет. Никаких <code>MockHttpClient</code>, декораторов или подмены сервисов. Клиент бандла делает реальные системные вызовы <code>connect()</code>/<code>send()</code>. Подменён только адрес в env.</span></div>
+    <div><span class="q">Слежение за порядком строк?</span><span class="a">Нет. Ядро видит только два потока данных: что ему передали через FFI и что пришло на порт. Порядок в коде важен ровно настолько, насколько сервер должен существовать до запроса.</span></div>
+    <div><span class="q">Логика сравнения в PHP?</span><span class="a">Нет. pact-php это обёртка над C-API. Матчинг запросов, matchingRules, формат json, merge-запись файла живут в Rust-ядре, общем для всех языков Pact.</span></div>
+  </div>
+</section>
+
+<section style="display:flex;flex-direction:column;gap:14px">
+  <h2>Три прогона curl-ом, которые это показывают</h2>
+  <p>Скрипт поднимал mock через builder на порту 7777, потом стучал в него <code>curl</code>-ом без всякого Symfony. Журнал сервера решает всё.</p>
+  <div class="tablewrap"><table>
+    <thead><tr><th>прогон</th><th>что пришло на порт</th><th>журнал</th><th>verify()</th><th>json</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>ничего</td><td>#1 не посещена</td><td class="bad">false</td><td>нет</td></tr>
+      <tr><td>2</td><td>неверное тело → <code>500</code>, затем верное → <code>200</code></td><td>#1 посещена, но 1 mismatch</td><td class="bad">false</td><td>нет</td></tr>
+      <tr><td>3</td><td>только верное тело → <code>200</code></td><td>#1 посещена, mismatches пуст</td><td class="ok">true</td><td>записан</td></tr>
+    </tbody>
+  </table></div>
+  <p>Прогон 2 важен: лишний запрос не прощается, даже если правильный тоже был. Именно поэтому в тесте один вызов клиента на одну interaction и никаких «на всякий случай».</p>
+</section>
+
+<section style="display:flex;flex-direction:column;gap:14px">
+  <h2>C-функции ядра, которые дёргает pact-php в consumer-тесте</h2>
+  <div class="ffi">
+    <div><code>pactffi_new_interaction</code><span>создать interaction в реестре, вернуть handle</span></div>
+    <div><code>pactffi_given</code> / <code>pactffi_given_with_param</code><span>записать provider state (и params)</span></div>
+    <div><code>pactffi_upon_receiving</code><span>описание interaction</span></div>
+    <div><code>pactffi_with_request</code> · <code>pactffi_with_body</code> · <code>pactffi_with_header_v2</code><span>ожидаемый запрос, тело с матчерами</span></div>
+    <div><code>pactffi_response_status</code><span>ожидаемый ответ (тело и заголовки теми же with_* с флагом «response»)</span></div>
+    <div><code>pactffi_create_mock_server_for_transport</code><span>поднять поток-сервер, вернуть порт</span></div>
+    <div><code>pactffi_mock_server_matched</code><span>все посещены и без mismatches?</span></div>
+    <div><code>pactffi_mock_server_mismatches</code><span>JSON с тем, что не совпало</span></div>
+    <div><code>pactffi_write_pact_file</code><span>записать json (merge с существующим)</span></div>
+    <div><code>pactffi_cleanup_mock_server</code><span>остановить поток, освободить порт</span></div>
+  </div>
+  <p>Полный список видно в <code>vendor/pact-foundation/pact-php/src/PhpPact/FFI/Client.php</code>; сами функции описаны в <code>bin/pact-ffi-headers/pact.h</code>.</p>
+</section>
+</div>
+</body>
+</html>
