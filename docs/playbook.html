@@ -115,14 +115,14 @@ dd{margin:0;color:var(--muted)}
 <section id="ours">
   <h2>Как устроено у нас</h2>
   <ol class="flow">
-    <li><b>PR или push в монолите</b> → workflow <code>pact-consumer.yml</code>: <code>make pact-consumer</code> пишет контракт, <code>make pact-publish</code> публикует его в брокер под sha коммита и именем ветки (на PR: ветка фичи).</li>
-    <li><b>PR или push в payment-service</b> → workflow <code>pact-provider.yml</code>: <code>make pact-provider</code> забирает из брокера контракты по трём правилам (одноимённая ветка, задеплоенные версии, main-ветка консьюмера), проверяет и публикует результат под своим sha.</li>
+    <li><b>PR или push в монолите</b> → workflow <code>pact-consumer.yml</code>: <code>make pact-consumer</code> пишет контракт, при push в <code>development</code>, <code>release</code> или <code>main</code> <code>make pact-publish</code> публикует его в брокер под sha коммита и именем ветки; на PR только тесты.</li>
+    <li><b>PR или push в payment-service</b> → workflow <code>pact-provider.yml</code>: <code>make pact-provider</code> забирает из брокера контракты по двум правилам (main-ветка консьюмера, задеплоенные версии), проверяет и публикует результат под своим sha.</li>
     <li><b>Деплой</b> (CodePipeline, ветка <code>release</code> = staging, <code>main</code> = production): перед сборкой <code>make pact-can-i-deploy</code>, после выкладки <code>make pact-record-deployment</code>. Этап в работе, см. план.</li>
   </ol>
   <div class="tablewrap"><table>
     <thead><tr><th>ветка</th><th>что это</th><th>как её видит брокер</th></tr></thead>
     <tbody>
-      <tr><td><code>sc-xxx</code></td><td>фича</td><td>версии с веткой <code>sc-xxx</code>; провайдер проверит их, только если у него есть ветка с тем же именем (правило «одноимённая ветка»)</td></tr>
+      <tr><td><code>sc-xxx</code></td><td>фича</td><td>в брокер не публикуется: на PR гоняются только тесты</td></tr>
       <tr><td><code>development</code></td><td>куда мержатся фичи</td><td>main-ветка участника: провайдер в каждом своём PR проверяется против последнего контракта отсюда</td></tr>
       <tr><td><code>release</code></td><td>staging</td><td>через окружение <code>staging</code>, после <code>record-deployment</code></td></tr>
       <tr><td><code>main</code></td><td>production</td><td>через окружение <code>production</code>, после <code>record-deployment</code></td></tr>
@@ -244,7 +244,7 @@ $this->verifyInteractions();</code></pre>
       <tr><td>провайдер добавил поле в ответ</td><td class="ok">да</td><td>в любом порядке: контракт описывает только поля, которые консьюмер читает</td></tr>
       <tr><td>провайдер убирает или переименовывает поле ответа</td><td class="bad">нет</td><td>1. консьюмер перестаёт читать поле, публикует контракт, деплоится. 2. провайдер убирает поле: <code>can-i-deploy</code> зелёный, потому что задеплоенный консьюмер поле больше не требует</td></tr>
       <tr><td>провайдер требует новое обязательное поле в запросе</td><td class="bad">нет</td><td>1. провайдер принимает поле как необязательное, деплоится. 2. консьюмер начинает слать. 3. провайдер делает обязательным</td></tr>
-      <tr><td>консьюмер начинает читать новое поле, которого у провайдера ещё нет</td><td class="ok">да, с pending</td><td>консьюмер публикует ожидание из фичи, у провайдера оно pending и не валит сборку; задеплоить фичу консьюмер сможет только после реализации у провайдера</td></tr>
+      <tr><td>консьюмер начинает читать новое поле, которого у провайдера ещё нет</td><td class="ok">да, с pending</td><td>консьюмер мержит ожидание в <code>development</code>, у провайдера оно pending и не валит сборку; задеплоить его консьюмер сможет только после реализации у провайдера</td></tr>
     </tbody>
   </table></div>
   <p>Общее правило: деплоится тот, чья версия совместима с тем, что уже стоит. <code>can-i-deploy</code> это и проверяет, порядок выше это способ сделать его зелёным без ручной координации.</p>
@@ -287,7 +287,7 @@ $this->verifyInteractions();</code></pre>
         <li>Рабочее test-окружение: <code>.env.test</code>, тестовая база в <code>docker-compose.test.yml</code>, <code>when@test</code> там, где конфиг ссылается на сервисы, которых в test нет.</li>
         <li><code>PACT_PROVIDER_NAME=&lt;имя&gt;</code> в <code>.env.test</code>; группа <code>pact-provider</code> исключена из обычного прогона.</li>
         <li>Enum состояний и контроллер <code>/_pact/provider-states</code> под <code>when@test</code>.</li>
-        <li>Тест верификации по образцу <code>PactProviderVerificationTest</code>: встроенный сервер, селекторы mainBranch + matchingBranch + deployedOrReleased, pending включён.</li>
+        <li>Тест верификации по образцу <code>PactProviderVerificationTest</code>: встроенный сервер, селекторы mainBranch + deployedOrReleased, pending включён.</li>
         <li>Блок Pact в Makefile: <code>pact-provider-init</code>, <code>pact-provider</code>, <code>pact-can-i-deploy</code>, <code>pact-record-deployment</code>.</li>
         <li>Workflow <code>pact-provider.yml</code>, участник в брокере с main-веткой <code>development</code>.</li>
       </ol>
