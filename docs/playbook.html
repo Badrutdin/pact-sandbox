@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pact: playbook для сервисов</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --bg:#f5f6f8;--surface:#ffffff;--ink:#1c2128;--muted:#5b6470;--line:#d6dae1;--line-strong:#aab1bb;
+  --php:#2f5d9e;--php-soft:#e6eef9;--rust:#b7410e;--rust-soft:#fbeadf;--wire:#1f7a4d;--wire-soft:#e3f2e9;
+  --warn:#9a5b00;--warn-soft:#fff3d6;--code-bg:#eef0f3;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#14171c;--surface:#1c2027;--ink:#e6e9ee;--muted:#9aa3b0;--line:#2c323b;--line-strong:#4a525d;
+    --php:#7ea6e6;--php-soft:#1b2a40;--rust:#f0865a;--rust-soft:#3a2216;--wire:#5fc48e;--wire-soft:#173226;
+    --warn:#e6b45c;--warn-soft:#3a2d12;--code-bg:#242a33;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#14171c;--surface:#1c2027;--ink:#e6e9ee;--muted:#9aa3b0;--line:#2c323b;--line-strong:#4a525d;
+  --php:#7ea6e6;--php-soft:#1b2a40;--rust:#f0865a;--rust-soft:#3a2216;--wire:#5fc48e;--wire-soft:#173226;
+  --warn:#e6b45c;--warn-soft:#3a2d12;--code-bg:#242a33;
+}
+body{background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;font-size:15px;line-height:1.55;padding-block:32px 64px;padding-inline:16px}
+.wrap{max-width:1040px;margin:0 auto;display:flex;flex-direction:column;gap:44px}
+h1,h2,h3{text-wrap:balance;margin:0;font-weight:600;line-height:1.2}
+h1{font-size:30px}h2{font-size:21px}h3{font-size:16px}
+p,li{max-width:76ch}
+p{margin:0}
+a{color:var(--php)}
+code,pre{font-family:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px}
+code{background:var(--code-bg);padding:1px 5px;border-radius:4px}
+pre{background:var(--code-bg);padding:12px 14px;border-radius:6px;overflow-x:auto;margin:0;line-height:1.5}
+pre code{background:none;padding:0}
+.eyebrow{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:500}
+header{display:flex;flex-direction:column;gap:10px}
+header p{color:var(--muted);font-size:16px}
+nav.toc{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13.5px;border:1px solid var(--line);border-radius:8px;padding:12px 16px;background:var(--surface)}
+nav.toc a{color:var(--ink);text-decoration:none}
+nav.toc a:hover{text-decoration:underline}
+section{display:flex;flex-direction:column;gap:14px}
+.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.cards div{border:1px solid var(--line);border-radius:8px;padding:14px 16px;background:var(--surface);display:flex;flex-direction:column;gap:6px}
+.cards b{font-weight:600}
+.cards small{color:var(--muted)}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.cols>div{display:flex;flex-direction:column;gap:8px}
+.tag{display:inline-block;font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;font-weight:500;padding:2px 8px;border-radius:999px;align-self:flex-start}
+.tag.php{background:var(--php-soft);color:var(--php)}
+.tag.rust{background:var(--rust-soft);color:var(--rust)}
+.tag.wire{background:var(--wire-soft);color:var(--wire)}
+.tag.none{background:var(--code-bg);color:var(--muted)}
+.callout{border-left:3px solid var(--warn);background:var(--warn-soft);padding:12px 16px;border-radius:0 8px 8px 0;display:flex;flex-direction:column;gap:8px}
+.callout p{max-width:none}
+.good{border-left-color:var(--wire);background:var(--wire-soft)}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-weight:500;color:var(--muted);font-size:12.5px;letter-spacing:.04em;text-transform:uppercase}
+td code{white-space:nowrap}
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
+ol.flow,ul.plain{margin:0;padding-left:22px;display:flex;flex-direction:column;gap:6px}
+ol.flow li,ul.plain li{padding-left:4px}
+dl{margin:0;display:grid;grid-template-columns:max-content 1fr;gap:8px 18px}
+dt{font-weight:600;white-space:nowrap}
+dd{margin:0;color:var(--muted)}
+.step{display:grid;grid-template-columns:48px 1fr;gap:14px;border-top:1px solid var(--line);padding-top:16px}
+.step .n{font-family:"IBM Plex Mono",monospace;font-size:22px;color:var(--ink);font-weight:500;line-height:1;padding-top:2px}
+.step .body{display:flex;flex-direction:column;gap:10px;min-width:0}
+.ok{color:var(--wire);font-weight:600}.bad{color:var(--rust);font-weight:600}
+@media (max-width:760px){.cards,.cols{grid-template-columns:1fr}dl{grid-template-columns:1fr}dt{white-space:normal}.step{grid-template-columns:36px 1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <span class="eyebrow">pact-php 10 · Pact Broker · монолит → payment-service · <a href="index.html" style="color:inherit">← весь цикл контракта</a> · <a href="anatomy.html" style="color:inherit">анатомия теста</a></span>
+  <h1>Pact: playbook для сервисов</h1>
+  <p>Как контрактные тесты устроены у нас: что писать в консьюмере, что в провайдере, что происходит в CI и на деплое, что смотреть в брокере и на какие грабли мы уже наступили. Пилот: монолит (consumer) и payment-service (provider).</p>
+</header>
+
+<nav class="toc">
+  <a href="#why">Зачем</a><a href="#terms">Словарь</a><a href="#ours">Как устроено у нас</a><a href="#consumer">Consumer</a><a href="#provider">Provider</a><a href="#broker">Брокер</a><a href="#release">Релиз</a><a href="#pitfalls">Грабли</a><a href="#checklist">Новый сервис</a>
+</nav>
+
+<section id="why">
+  <h2>Зачем</h2>
+  <p>Монолит ходит в payment-service по HTTP. Что именно он шлёт и что ожидает получить, нигде не зафиксировано: это знание размазано по клиенту в бандле, по контроллерам PS и по головам. Переименовали поле в ответе PS, монолит узнаёт об этом на staging, в лучшем случае. Интеграционных тестов между сервисами нет, а поднимать оба сервиса ради каждого PR дорого и медленно.</p>
+  <p>Pact фиксирует это знание в виде контракта: списка пар «такой запрос → такой ответ», который пишет консьюмер и проверяет провайдер. Обе проверки бегут в юнит-скорости, по отдельности, без поднятия второго сервиса. Брокер хранит контракты и результаты и отвечает на единственный вопрос, который важен перед деплоем: совместима ли эта версия с тем, что сейчас стоит на окружении.</p>
+  <div class="cards">
+    <div><b>Consumer</b><small>Сервис, который зовёт чужой API. Пишет тест с ожиданием «запрос → ответ», тест гоняет настоящий HTTP-клиент против mock-сервера. Результат: json-контракт.</small></div>
+    <div><b>Provider</b><small>Сервис, который этот API отдаёт. Берёт контракт, поднимает себя в test-окружении, шлёт себе записанные запросы и сравнивает ответы по правилам из контракта.</small></div>
+    <div><b>Broker</b><small>Один на организацию. Хранит контракты по версиям и веткам, результаты верификаций, кто где задеплоен. Отвечает на <code>can-i-deploy</code>.</small></div>
+  </div>
+</section>
+
+<section id="terms">
+  <h2>Словарь</h2>
+  <dl>
+    <dt>interaction</dt><dd>Одна пара «запрос → ответ» в контракте. Один тестовый метод = одна interaction.</dd>
+    <dt>matcher</dt><dd>Правило вместо точного значения: <code>regex</code>, <code>datetime</code>, <code>eachLike</code>, <code>like</code>. Пример внутри matcher-а отдаёт mock консьюмеру, правило проверяется у провайдера.</dd>
+    <dt>provider state</dt><dd>Строка <code>given('...')</code>: предусловие, которое провайдер должен создать у себя перед проверкой (строка в базе). Переменные данные идут в <code>params</code>.</dd>
+    <dt>версия</dt><dd>Полный sha коммита. Под ним публикуется контракт и результат верификации. Версия в брокере неизменяема.</dd>
+    <dt>ветка</dt><dd>Метка на версии: из какой ветки она собрана. Провайдер проверяет «последнюю версию из main-ветки консьюмера», у нас main-ветка = <code>development</code>.</dd>
+    <dt>окружение</dt><dd><code>staging</code> и <code>production</code>. Запись «версия X стоит в staging» делает пайплайн деплоя (<code>record-deployment</code>). Окружения <code>development</code> нет: из этой ветки ничего не деплоится.</dd>
+    <dt>pending</dt><dd>Контракт, который провайдер ещё ни разу не проходил. Красный результат по нему не валит сборку провайдера: консьюмер может описывать ожидание раньше, чем провайдер его реализует.</dd>
+    <dt>can-i-deploy</dt><dd>Вопрос брокеру: «версия X совместима со всем, что сейчас задеплоено в окружение Y?». Ответ зависит только от задеплоенных версий, не от веток.</dd>
+  </dl>
+</section>
+
+<section id="ours">
+  <h2>Как устроено у нас</h2>
+  <ol class="flow">
+    <li><b>PR или push в монолите</b> → workflow <code>pact-consumer.yml</code>: <code>make pact-consumer</code> пишет контракт, <code>make pact-publish</code> публикует его в брокер под sha коммита и именем ветки (на PR: ветка фичи).</li>
+    <li><b>PR или push в payment-service</b> → workflow <code>pact-provider.yml</code>: <code>make pact-provider</code> забирает из брокера контракты по трём правилам (одноимённая ветка, задеплоенные версии, main-ветка консьюмера), проверяет и публикует результат под своим sha.</li>
+    <li><b>Деплой</b> (CodePipeline, ветка <code>release</code> = staging, <code>main</code> = production): перед сборкой <code>make pact-can-i-deploy</code>, после выкладки <code>make pact-record-deployment</code>. Этап в работе, см. план.</li>
+  </ol>
+  <div class="tablewrap"><table>
+    <thead><tr><th>ветка</th><th>что это</th><th>как её видит брокер</th></tr></thead>
+    <tbody>
+      <tr><td><code>sc-xxx</code></td><td>фича</td><td>версии с веткой <code>sc-xxx</code>; провайдер проверит их, только если у него есть ветка с тем же именем (правило «одноимённая ветка»)</td></tr>
+      <tr><td><code>development</code></td><td>куда мержатся фичи</td><td>main-ветка участника: провайдер в каждом своём PR проверяется против последнего контракта отсюда</td></tr>
+      <tr><td><code>release</code></td><td>staging</td><td>через окружение <code>staging</code>, после <code>record-deployment</code></td></tr>
+      <tr><td><code>main</code></td><td>production</td><td>через окружение <code>production</code>, после <code>record-deployment</code></td></tr>
+    </tbody>
+  </table></div>
+  <p>Брокер один на все окружения, стоит в приватной сети AWS. Workflow до него достают с self-hosted раннера (переменная <code>PACT_RUNNER</code>), доступ из секретов <code>PACT_BROKER_*</code>. Пока их нет, workflow гоняют тесты и ничего не публикуют. Три схемы, где что запускается: <a href="anatomy.html#infra">на странице анатомии</a>.</p>
+</section>
+
+<section id="consumer">
+  <h2>Consumer: как добавить interaction</h2>
+  <p>Пример: монолит, <code>tests/Pact/PaymentService/ExchangeRateApiProviderPactTest.php</code>. Правила: один класс на один <code>ApiProvider</code> бандла, один метод на одну реальную форму вызова (зеркало call-site в <code>src/</code>), клиент берётся из контейнера через <code>PactConsumerTestCase</code>, подменяется только env с base_uri.</p>
+
+  <div class="step"><div class="n">1</div><div class="body">
+    <h3>Запрос: точные значения, только нужные заголовки</h3>
+    <p>Это наш запрос, мы его контролируем, поэтому без matcher-ов. Заголовки только те, на которые провайдер опирается (<code>Content-Type</code> нужен <code>MapRequestPayload</code>). Лишний заголовок в контракте = лишнее требование к провайдеру.</p>
+<pre><code>$request = (new ConsumerRequest())
+    ->setMethod('POST')
+    ->setPath('/inner-api/payment-service/exchange-rate/latest')
+    ->addHeader('Content-Type', 'application/json')
+    ->setBody(['sourceCurrency' => null, 'targetCurrency' => CurrencyEnum::Euro->value]);</code></pre>
+  </div></div>
+
+  <div class="step"><div class="n">2</div><div class="body">
+    <h3>Ответ: форма через matcher-ы, точное значение только там, где провайдер обязан его вернуть</h3>
+    <p>Значение внутри matcher-а это пример: его отдаёт mock, клиент должен его распарсить. Правило (regex, datetime, «массив минимум из одного») проверяется у провайдера. Голое значение без matcher-а, как <code>targetCurrency</code> ниже, требует от провайдера ровно его: фильтр должен быть соблюдён.</p>
+<pre><code>$response = (new ProviderResponse())
+    ->setStatus(200)
+    ->addHeader('Content-Type', 'application/json')
+    ->setBody($this->matcher->eachLike([
+        'sourceCurrency' => $this->matcher->regex('usd', self::enumValuesRegex(CurrencyEnum::class)),
+        'targetCurrency' => CurrencyEnum::Euro->value,
+        'date' => $this->matcher->datetime("yyyy-MM-dd'T'HH:mm:ssxxx", '2026-09-17T00:00:00+00:00'),
+        'rate' => $this->matcher->regex('0.92', '^\d+(\.\d+)?$'),
+    ]));</code></pre>
+  </div></div>
+
+  <div class="step"><div class="n">3</div><div class="body">
+    <h3>State как предикат, переменные данные в params</h3>
+    <p>Строка <code>given</code> описывает факт, который провайдер должен обеспечить: «latest USD-&gt;EUR exchange rate exists». Конкретные id и даты не зашиваются в строку, а передаются в <code>params</code>: провайдер читает их в фикстуре. Одна строка = один case в enum провайдера, см. ниже.</p>
+<pre><code>$this->builder
+    ->given('USD->EUR exchange rates exist for a date range', ['dateStart' => '2026-09-01', 'dateEnd' => '2026-09-03'])
+    ->uponReceiving('a request for USD->EUR exchange rates by date range')
+    ->with($request)
+    ->willRespondWith($response);</code></pre>
+  </div></div>
+
+  <div class="step"><div class="n">4</div><div class="body">
+    <h3>Вызов настоящего клиента и verify</h3>
+    <p>Без вызова клиента mock никто не дёрнет и <code>verify</code> упадёт. Результат вызова не ассертится: сравнивать его с собственным примером бессмысленно, типы гарантирует конструктор DTO.</p>
+<pre><code>self::getContainer()->get(ExchangeRateApiProvider::class)
+    ->getExchangeRates($dateStart, $dateEnd, null, CurrencyEnum::Euro);
+
+$this->verifyInteractions();</code></pre>
+  </div></div>
+
+  <div class="callout"><p><b>Запуск:</b> <code>make pact-consumer</code>. Удаляет старые json (Pact дописывает в файл, а не перезаписывает) и гоняет группу <code>pact-consumer</code>. Контракт в <code>tests/Pact/pacts/monolith-payment-service.json</code>, в git не попадает. Ни провайдер, ни брокер не нужны.</p></div>
+</section>
+
+<section id="provider">
+  <h2>Provider: как добавить state</h2>
+  <p>Пример: payment-service, <code>tests/Pact/</code>. Верификация сама запускает сервис встроенным сервером PHP в <code>APP_ENV=test</code> на свободном порту, с отдельной тестовой базой. Перед каждой interaction verifier зовёт <code>POST /_pact/provider-states</code> (роут только в test), контроллер чистит таблицы и создаёт данные под state.</p>
+
+  <div class="step"><div class="n">1</div><div class="body">
+    <h3>Case в enum: реестр всех строк given</h3>
+    <p>Строка должна совпадать с консьюмером символ в символ. Enum это единственное место, где перечислены все состояния; параметры описаны в docblock.</p>
+<pre><code>enum ProviderState: string
+{
+    case LatestUsdEurExchangeRateExists = 'latest USD->EUR exchange rate exists';
+    /** params: dateStart, dateEnd (Y-m-d) */
+    case UsdEurExchangeRatesExistForDateRange = 'USD->EUR exchange rates exist for a date range';
+    /** params: customerId, offerId */
+    case ConsentDetailsForCustomerAndOfferExist = 'consent details exist for a customer and an offer';
+}</code></pre>
+  </div></div>
+
+  <div class="step"><div class="n">2</div><div class="body">
+    <h3>Фикстура в контроллере</h3>
+    <p><code>match</code> по enum, по одной ветке на state. Параметры через <code>param()</code>: отсутствующий параметр это 400 и понятная ошибка в логе верификации, а не пустая таблица.</p>
+<pre><code>match ($state) {
+    ProviderState::LatestUsdEurExchangeRateExists => $this->addRate(CurrencyEnum::UsDollar, CurrencyEnum::Euro, '0.92', 'today'),
+    ProviderState::UsdEurExchangeRatesExistForDateRange => $this->addRatesForRange(
+        $this->param($state, $params, 'dateStart'),
+        $this->param($state, $params, 'dateEnd'),
+    ),
+    ProviderState::CustomerHasNoConsentDetails => null,
+};</code></pre>
+  </div></div>
+
+  <div class="step"><div class="n">3</div><div class="body">
+    <h3>Запуск</h3>
+    <p><code>make pact-provider-init</code> один раз: поднимает тестовый postgres из <code>docker-compose.test.yml</code> и гоняет миграции. Затем <code>make pact-provider</code>. Без брокера (нет <code>.env.test.local</code>) проверяются файлы из <code>tests/Pact/pacts</code>: скопируйте туда json консьюмера. С брокером контракты берутся из него, результат публикуется под sha и веткой из git.</p>
+  </div></div>
+
+  <div class="callout"><p><b>Переименовать или удалить state нельзя просто так.</b> Контракт задеплоенной версии консьюмера продолжает ссылаться на старую строку, и верификация против production падает. Сначала консьюмер перестаёт использовать строку и доезжает до прода, потом провайдер её убирает.</p></div>
+</section>
+
+<section id="broker">
+  <h2>Что смотреть в брокере</h2>
+  <div class="cols">
+    <div>
+      <h3>Красный у провайдера в PR</h3>
+      <p>Провайдер сломал ожидание консьюмера: ответ не прошёл правило из контракта. Лог верификации показывает interaction, поле и правило. Чинит провайдер; если ожидание неверное, чинит консьюмер и публикует новый контракт.</p>
+      <p>Исключение: interaction помечена <span class="tag none">pending</span>. Это новое ожидание, которое провайдер ещё не реализовал; сборку оно не валит, но до реализации консьюмер этот вызов не задеплоит.</p>
+    </div>
+    <div>
+      <h3>Красный can-i-deploy</h3>
+      <p>Либо провайдер ещё не проверил эту версию контракта (результата нет: подождать его CI или запустить верификацию), либо проверил и она красная. Во втором случае ответ брокера называет версию провайдера и interaction.</p>
+      <p>У провайдера красный <code>can-i-deploy</code> значит: его версия не проходит контракт консьюмера, который сейчас задеплоен в это окружение.</p>
+    </div>
+  </div>
+  <p>В UI брокера: список контрактов пары, у каждой версии ветка и пометки окружений; матрица «версия консьюмера × версия провайдера» с результатом; фильтр по ветке и окружению. Для пилота есть своя витрина поверх API брокера: окружения с вердиктом, матрица, лента публикаций.</p>
+</section>
+
+<section id="release">
+  <h2>Релиз: кто кого ждёт</h2>
+  <div class="tablewrap"><table>
+    <thead><tr><th>изменение</th><th>безопасно?</th><th>порядок</th></tr></thead>
+    <tbody>
+      <tr><td>провайдер добавил поле в ответ</td><td class="ok">да</td><td>в любом порядке: контракт описывает только поля, которые консьюмер читает</td></tr>
+      <tr><td>провайдер убирает или переименовывает поле ответа</td><td class="bad">нет</td><td>1. консьюмер перестаёт читать поле, публикует контракт, деплоится. 2. провайдер убирает поле: <code>can-i-deploy</code> зелёный, потому что задеплоенный консьюмер поле больше не требует</td></tr>
+      <tr><td>провайдер требует новое обязательное поле в запросе</td><td class="bad">нет</td><td>1. провайдер принимает поле как необязательное, деплоится. 2. консьюмер начинает слать. 3. провайдер делает обязательным</td></tr>
+      <tr><td>консьюмер начинает читать новое поле, которого у провайдера ещё нет</td><td class="ok">да, с pending</td><td>консьюмер публикует ожидание из фичи, у провайдера оно pending и не валит сборку; задеплоить фичу консьюмер сможет только после реализации у провайдера</td></tr>
+    </tbody>
+  </table></div>
+  <p>Общее правило: деплоится тот, чья версия совместима с тем, что уже стоит. <code>can-i-deploy</code> это и проверяет, порядок выше это способ сделать его зелёным без ручной координации.</p>
+</section>
+
+<section id="pitfalls">
+  <h2>Грабли, на которые уже наступили</h2>
+  <ul class="plain">
+    <li><b>Pact дописывает json, а не перезаписывает.</b> Старые interaction остаются в файле. <code>make pact-consumer</code> чистит каталог перед прогоном; руками phpunit без этого даёт замусоренный контракт.</li>
+    <li><b>Версия неизменяема.</b> Под одним sha другое содержимое брокер отвергает. Публиковать только с чистого коммита, после полного прогона без <code>--filter</code>.</li>
+    <li><b>Переименованный state ломает задеплоенную версию</b> (см. выше).</li>
+    <li><b>Replica-соединение читало dev-базу.</b> В PS <code>DATABASE_REPLICA_DSN</code> из <code>docker-compose.override.yml</code> перебивал <code>.env.test</code>: настоящие env сильнее dotenv. Сервер верификации стартует без унаследованных <code>DATABASE_*</code>.</li>
+    <li><b>Test-окружение PS никогда не поднималось.</b> <code>monolog.yaml</code> ссылался на kafka-хендлеры, которых в test нет; <code>.env.test</code> не существовал. Теперь есть, вместе с <code>when@test</code>-переопределениями.</li>
+    <li><b>FFI только в dev-образе.</b> pact-php работает через <code>ext-ffi</code>; на staging/prod он не нужен и не ставится. В CI ставится через <code>setup-php</code>.</li>
+    <li><b>Брокер не в репозитории.</b> Адрес и креды только в окружении (секреты CI) или в личном gitignored <code>.env.test.local</code>. В <code>.env.test</code> только имя участника.</li>
+    <li><b>Workflow-файлы пушат только админы.</b> Push-ruleset на <code>.github/**</code> в обоих репо: файлы передаются тимлиду отдельно.</li>
+    <li><b>Mock-сервер слушает только после <code>willRespondWith()</code>.</b> Порт выдаёт ОС; base_uri спрашивать раньше бессмысленно.</li>
+  </ul>
+</section>
+
+<section id="checklist">
+  <h2>Чеклист: подключить новый сервис</h2>
+  <div class="cols">
+    <div>
+      <span class="tag php">consumer</span>
+      <ol class="flow">
+        <li><code>ext-ffi</code> в dev-блоке Dockerfile, образ пересобрать.</li>
+        <li><code>composer require --dev pact-foundation/pact-php:^10</code>, разрешить плагин <code>composer-downloads-plugin</code>.</li>
+        <li><code>PACT_CONSUMER_NAME=&lt;имя&gt;</code> в <code>.env.test</code>; группу <code>pact-consumer</code> исключить в <code>phpunit.xml.dist</code>; <code>tests/Pact/pacts/*.json</code> в <code>.gitignore</code>.</li>
+        <li>Базовый класс по образцу <code>PactConsumerTestCase</code> и класс на каждый ApiProvider.</li>
+        <li>Блок Pact в Makefile: <code>pact-consumer</code>, <code>pact-publish</code>, <code>pact-can-i-deploy</code>, <code>pact-record-deployment</code>.</li>
+        <li>Workflow <code>pact-consumer.yml</code> (копия из монолита), передать на пуш админу.</li>
+        <li>В брокере: <code>create-or-update-pacticipant --name &lt;имя&gt; --main-branch development</code>.</li>
+      </ol>
+    </div>
+    <div>
+      <span class="tag rust">provider</span>
+      <ol class="flow">
+        <li><code>ext-ffi</code> в dev-образ, pact-php в dev-зависимости.</li>
+        <li>Рабочее test-окружение: <code>.env.test</code>, тестовая база в <code>docker-compose.test.yml</code>, <code>when@test</code> там, где конфиг ссылается на сервисы, которых в test нет.</li>
+        <li><code>PACT_PROVIDER_NAME=&lt;имя&gt;</code> в <code>.env.test</code>; группа <code>pact-provider</code> исключена из обычного прогона.</li>
+        <li>Enum состояний и контроллер <code>/_pact/provider-states</code> под <code>when@test</code>.</li>
+        <li>Тест верификации по образцу <code>PactProviderVerificationTest</code>: встроенный сервер, селекторы mainBranch + matchingBranch + deployedOrReleased, pending включён.</li>
+        <li>Блок Pact в Makefile: <code>pact-provider-init</code>, <code>pact-provider</code>, <code>pact-can-i-deploy</code>, <code>pact-record-deployment</code>.</li>
+        <li>Workflow <code>pact-provider.yml</code>, участник в брокере с main-веткой <code>development</code>.</li>
+      </ol>
+    </div>
+  </div>
+  <div class="callout good"><p>Ориентир по времени из пилота: consumer-сторона с пятью interaction и provider-сторона с пятью state заняли по одному дню каждая, большая часть ушла не на Pact, а на то, чтобы test-окружение провайдера вообще поднималось.</p></div>
+</section>
+
+</div>
+</body>
+</html>
