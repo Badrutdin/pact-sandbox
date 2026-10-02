@@ -128,7 +128,7 @@ dd{margin:0;color:var(--muted)}
       <tr><td><code>main</code></td><td>production</td><td>через окружение <code>production</code>, после <code>record-deployment</code></td></tr>
     </tbody>
   </table></div>
-  <p>Брокер один на все окружения, стоит в приватной сети AWS. Workflow до него достают с self-hosted раннера (переменная <code>PACT_RUNNER</code>), доступ из секретов <code>PACT_BROKER_*</code>. Пока их нет, workflow гоняют тесты и ничего не публикуют. Три схемы, где что запускается: <a href="anatomy.html#infra">на странице анатомии</a>.</p>
+  <p>Брокер один на все окружения: <code>pact-broker.systeme.club</code>, публичный ALB с basic auth. Workflow идут на обычных раннерах GitHub, доступ к брокеру из секретов <code>PACT_BROKER_*</code>. Пока их нет, workflow гоняют тесты и ничего не публикуют. Три схемы, где что запускается: <a href="anatomy.html#infra">на странице анатомии</a>.</p>
 </section>
 
 <section id="consumer">
