@@ -78,9 +78,9 @@ dd{margin:0;color:var(--muted)}
 <div class="wrap">
 
 <header>
-  <span class="eyebrow">pact-php 10 · Pact Broker · монолит → payment-service · <a href="index.html" style="color:inherit">← весь цикл контракта</a> · <a href="anatomy.html" style="color:inherit">анатомия теста</a></span>
+  <span class="eyebrow">pact-php 10 · Pact Broker · payment-service-bundle → payment-service · <a href="index.html" style="color:inherit">← весь цикл контракта</a> · <a href="anatomy.html" style="color:inherit">анатомия теста</a></span>
   <h1>Pact: playbook для сервисов</h1>
-  <p>Как контрактные тесты устроены у нас: что писать в консьюмере, что в провайдере, что происходит в CI и на деплое, что смотреть в брокере и на какие грабли мы уже наступили. Пилот: монолит (consumer) и payment-service (provider).</p>
+  <p>Как контрактные тесты устроены у нас: что писать в консьюмере, что в провайдере, что происходит в CI и на деплое, что смотреть в брокере и на какие грабли мы уже наступили. Пилот: payment-service-bundle (consumer, клиент, через который монолит ходит в PS) и payment-service (provider).</p>
 </header>
 
 <nav class="toc">
@@ -89,7 +89,7 @@ dd{margin:0;color:var(--muted)}
 
 <section id="why">
   <h2>Зачем</h2>
-  <p>Монолит ходит в payment-service по HTTP. Что именно он шлёт и что ожидает получить, нигде не зафиксировано: это знание размазано по клиенту в бандле, по контроллерам PS и по головам. Переименовали поле в ответе PS, монолит узнаёт об этом на staging, в лучшем случае. Интеграционных тестов между сервисами нет, а поднимать оба сервиса ради каждого PR дорого и медленно.</p>
+  <p>Монолит ходит в payment-service по HTTP через <code>payment-service-bundle</code>. Что именно бандл шлёт и что ожидает получить, нигде не зафиксировано: это знание размазано по ApiProvider-ам бандла, по DTO, по контроллерам PS и по головам. Переименовали поле в ответе PS, монолит узнаёт об этом на staging, в лучшем случае. Интеграционных тестов между сервисами нет, а поднимать оба сервиса ради каждого PR дорого и медленно.</p>
   <p>Pact фиксирует это знание в виде контракта: списка пар «такой запрос → такой ответ», который пишет консьюмер и проверяет провайдер. Обе проверки бегут в юнит-скорости, по отдельности, без поднятия второго сервиса. Брокер хранит контракты и результаты и отвечает на единственный вопрос, который важен перед деплоем: совместима ли эта версия с тем, что сейчас стоит на окружении.</p>
   <div class="cards">
     <div><b>Consumer</b><small>Сервис, который зовёт чужой API. Пишет тест с ожиданием «запрос → ответ», тест гоняет настоящий HTTP-клиент против mock-сервера. Результат: json-контракт.</small></div>
@@ -105,8 +105,8 @@ dd{margin:0;color:var(--muted)}
     <dt>matcher</dt><dd>Правило вместо точного значения: <code>regex</code>, <code>datetime</code>, <code>eachLike</code>, <code>like</code>. Пример внутри matcher-а отдаёт mock консьюмеру, правило проверяется у провайдера.</dd>
     <dt>provider state</dt><dd>Строка <code>given('...')</code>: предусловие, которое провайдер должен создать у себя перед проверкой (строка в базе). Переменные данные идут в <code>params</code>.</dd>
     <dt>версия</dt><dd>Полный sha коммита. Под ним публикуется контракт и результат верификации. Версия в брокере неизменяема.</dd>
-    <dt>ветка</dt><dd>Метка на версии: из какой ветки она собрана. Провайдер проверяет «последнюю версию из main-ветки консьюмера», у нас main-ветка = <code>development</code>.</dd>
-    <dt>окружение</dt><dd><code>staging</code> и <code>production</code>. Запись «версия X стоит в staging» делает пайплайн деплоя (<code>record-deployment</code>). Окружения <code>development</code> нет: из этой ветки ничего не деплоится.</dd>
+    <dt>ветка</dt><dd>Метка на версии: из какой ветки она собрана. Провайдер проверяет «последнюю версию из main-ветки консьюмера». Main-ветка у бандла <code>v4</code>, у payment-service <code>development</code>.</dd>
+    <dt>окружение</dt><dd><code>staging</code> и <code>production</code>. Запись «версия PS стоит в staging» делает пайплайн деплоя (<code>record-deployment</code>). Бандл не деплоится, его выпускают тегом: «версия бандла выпущена в production» записывает workflow тега (<code>record-release</code>).</dd>
     <dt>pending</dt><dd>Контракт, который провайдер ещё ни разу не проходил. Красный результат по нему не валит сборку провайдера: консьюмер может описывать ожидание раньше, чем провайдер его реализует.</dd>
     <dt>can-i-deploy</dt><dd>Вопрос брокеру: «версия X совместима со всем, что сейчас задеплоено в окружение Y?». Ответ зависит только от задеплоенных версий, не от веток.</dd>
   </dl>
@@ -115,17 +115,18 @@ dd{margin:0;color:var(--muted)}
 <section id="ours">
   <h2>Как устроено у нас</h2>
   <ol class="flow">
-    <li><b>PR или push в монолите</b> → workflow <code>pact-consumer.yml</code>: <code>make pact-consumer</code> пишет контракт, при push в <code>development</code>, <code>release</code> или <code>main</code> <code>make pact-publish</code> публикует его в брокер под sha коммита и именем ветки; на PR только тесты.</li>
-    <li><b>PR или push в payment-service</b> → workflow <code>pact-provider.yml</code>: <code>make pact-provider</code> забирает из брокера контракты по двум правилам (main-ветка консьюмера, задеплоенные версии), проверяет и публикует результат под своим sha.</li>
-    <li><b>Деплой</b> (CodePipeline, ветка <code>release</code> = staging, <code>main</code> = production): перед сборкой <code>make pact-can-i-deploy</code>, после выкладки <code>make pact-record-deployment</code>. Этап в работе, см. план.</li>
+    <li><b>Бандл</b> → workflow <code>pact-consumer.yml</code>: <code>make pact-consumer</code> пишет контракт. На PR только тесты. Push в <code>v4</code>: <code>make pact-publish</code> публикует контракт под sha коммита, ветка <code>v4</code>. Тег релиза: публикация, <code>make pact-can-i-deploy</code> («совместим с PS в production?») и, если да, <code>make pact-record-release</code>.</li>
+    <li><b>PR или push в payment-service</b> → workflow <code>pact-provider.yml</code>: <code>make pact-provider</code> забирает из брокера контракты по двум правилам (main-ветка бандла <code>v4</code>, выпущенные и задеплоенные версии), проверяет и публикует результат под своим sha.</li>
+    <li><b>Деплой PS</b> (CodePipeline, ветка <code>release</code> = staging, <code>main</code> = production): перед сборкой <code>make pact-can-i-deploy</code>, после выкладки <code>make pact-record-deployment</code>. Этап в работе, см. план.</li>
   </ol>
   <div class="tablewrap"><table>
-    <thead><tr><th>ветка</th><th>что это</th><th>как её видит брокер</th></tr></thead>
+    <thead><tr><th>репо</th><th>событие</th><th>что происходит в брокере</th></tr></thead>
     <tbody>
-      <tr><td><code>sc-xxx</code></td><td>фича</td><td>в брокер не публикуется: на PR гоняются только тесты</td></tr>
-      <tr><td><code>development</code></td><td>куда мержатся фичи</td><td>main-ветка участника: провайдер в каждом своём PR проверяется против последнего контракта отсюда</td></tr>
-      <tr><td><code>release</code></td><td>staging</td><td>через окружение <code>staging</code>, после <code>record-deployment</code></td></tr>
-      <tr><td><code>main</code></td><td>production</td><td>через окружение <code>production</code>, после <code>record-deployment</code></td></tr>
+      <tr><td>бандл</td><td>PR в <code>v*</code></td><td>ничего: гоняются только тесты</td></tr>
+      <tr><td>бандл</td><td>push в <code>v4</code></td><td>новая версия бандла с веткой <code>v4</code>; это main-ветка, PS в каждом своём PR проверяется против неё</td></tr>
+      <tr><td>бандл</td><td>тег релиза</td><td><code>can-i-deploy</code> против PS в production, затем <code>record-release</code>: версия считается выпущенной, PS обязан её выполнять</td></tr>
+      <tr><td>payment-service</td><td>PR, push в <code>development</code></td><td>результат верификации под sha и веткой PS</td></tr>
+      <tr><td>payment-service</td><td>мердж в <code>release</code> / <code>main</code></td><td>CodePipeline: <code>can-i-deploy</code>, после выкладки <code>record-deployment</code> в <code>staging</code> / <code>production</code></td></tr>
     </tbody>
   </table></div>
   <p>Брокер один на все окружения: <code>pact-broker.systeme.club</code>, публичный ALB с basic auth. Workflow идут на обычных раннерах GitHub, доступ к брокеру из секретов <code>PACT_BROKER_*</code>. Пока их нет, workflow гоняют тесты и ничего не публикуют. Три схемы, где что запускается: <a href="anatomy.html#infra">на странице анатомии</a>.</p>
@@ -133,7 +134,7 @@ dd{margin:0;color:var(--muted)}
 
 <section id="consumer">
   <h2>Consumer: как добавить interaction</h2>
-  <p>Пример: монолит, <code>tests/Pact/PaymentService/ExchangeRateApiProviderPactTest.php</code>. Правила: один класс на один <code>ApiProvider</code> бандла, один метод на одну реальную форму вызова (зеркало call-site в <code>src/</code>), клиент берётся из контейнера через <code>PactConsumerTestCase</code>, подменяется только env с base_uri.</p>
+  <p>Пример: бандл, <code>tests/Pact/ExchangeRateApiProviderPactTest.php</code>. Правила: один класс на один <code>ApiProvider</code>, один метод на одну реальную форму вызова (зеркало call-site у пользователей бандла, сейчас это монолит), клиент берётся из тестового ядра бандла через <code>PactConsumerTestCase</code>, подменяется только env с base_url.</p>
 
   <div class="step"><div class="n">1</div><div class="body">
     <h3>Запрос: точные значения, только нужные заголовки</h3>
@@ -178,7 +179,7 @@ dd{margin:0;color:var(--muted)}
 $this->verifyInteractions();</code></pre>
   </div></div>
 
-  <div class="callout"><p><b>Запуск:</b> <code>make pact-consumer</code>. Удаляет старые json (Pact дописывает в файл, а не перезаписывает) и гоняет группу <code>pact-consumer</code>. Контракт в <code>tests/Pact/pacts/monolith-payment-service.json</code>, в git не попадает. Ни провайдер, ни брокер не нужны.</p></div>
+  <div class="callout"><p><b>Запуск:</b> <code>make pact-consumer</code>. Удаляет старые json (Pact дописывает в файл, а не перезаписывает) и гоняет группу <code>pact-consumer</code>. Контракт в <code>tests/Pact/pacts/payment-service-bundle-payment-service.json</code>, в git не попадает. Ни провайдер, ни брокер не нужны.</p></div>
 </section>
 
 <section id="provider">
@@ -244,7 +245,7 @@ $this->verifyInteractions();</code></pre>
       <tr><td>провайдер добавил поле в ответ</td><td class="ok">да</td><td>в любом порядке: контракт описывает только поля, которые консьюмер читает</td></tr>
       <tr><td>провайдер убирает или переименовывает поле ответа</td><td class="bad">нет</td><td>1. консьюмер перестаёт читать поле, публикует контракт, деплоится. 2. провайдер убирает поле: <code>can-i-deploy</code> зелёный, потому что задеплоенный консьюмер поле больше не требует</td></tr>
       <tr><td>провайдер требует новое обязательное поле в запросе</td><td class="bad">нет</td><td>1. провайдер принимает поле как необязательное, деплоится. 2. консьюмер начинает слать. 3. провайдер делает обязательным</td></tr>
-      <tr><td>консьюмер начинает читать новое поле, которого у провайдера ещё нет</td><td class="ok">да, с pending</td><td>консьюмер мержит ожидание в <code>development</code>, у провайдера оно pending и не валит сборку; задеплоить его консьюмер сможет только после реализации у провайдера</td></tr>
+      <tr><td>консьюмер начинает читать новое поле, которого у провайдера ещё нет</td><td class="ok">да, с pending</td><td>консьюмер мержит ожидание в main-ветку (у бандла <code>v4</code>), у провайдера оно pending и не валит сборку; выпустить его консьюмер сможет только после реализации у провайдера: <code>can-i-deploy</code> на теге будет красным</td></tr>
     </tbody>
   </table></div>
   <p>Общее правило: деплоится тот, чья версия совместима с тем, что уже стоит. <code>can-i-deploy</code> это и проверяет, порядок выше это способ сделать его зелёным без ручной координации.</p>
@@ -259,7 +260,8 @@ $this->verifyInteractions();</code></pre>
     <li><b>Replica-соединение читало dev-базу.</b> В PS <code>DATABASE_REPLICA_DSN</code> из <code>docker-compose.override.yml</code> перебивал <code>.env.test</code>: настоящие env сильнее dotenv. Сервер верификации стартует без унаследованных <code>DATABASE_*</code>.</li>
     <li><b>Test-окружение PS никогда не поднималось.</b> <code>monolog.yaml</code> ссылался на kafka-хендлеры, которых в test нет; <code>.env.test</code> не существовал. Теперь есть, вместе с <code>when@test</code>-переопределениями.</li>
     <li><b>FFI только в dev-образе.</b> pact-php работает через <code>ext-ffi</code>; на staging/prod он не нужен и не ставится. В CI ставится через <code>setup-php</code>.</li>
-    <li><b>Брокер не в репозитории.</b> Адрес и креды только в окружении (секреты CI) или в личном gitignored <code>.env.test.local</code>. В <code>.env.test</code> только имя участника.</li>
+    <li><b>Брокер не в репозитории.</b> Адрес и креды только в окружении (секреты CI) или в личном gitignored <code>.env.test.local</code>. В репозитории только имя участника.</li>
+    <li><b>Контракт бандла зависит от версии DTO.</b> Тела запросов и ответов собирает <code>payment-service-dto-bundle</code>, а бандл допускает и 2.x, и 3.x. Монолит работает на 3.x, а свежий Symfony в dev-окружении бандла резолвит 2.x, где consent-DTO другие. Pact-тесты бандла гоняются с <code>composer update --with 'systemeio/payment-service-dto-bundle:^3.0'</code>, в CI так же.</li>
     <li><b>Workflow-файлы пушат только админы.</b> Push-ruleset на <code>.github/**</code> в обоих репо: файлы передаются тимлиду отдельно.</li>
     <li><b>Mock-сервер слушает только после <code>willRespondWith()</code>.</b> Порт выдаёт ОС; base_uri спрашивать раньше бессмысленно.</li>
   </ul>
@@ -273,11 +275,11 @@ $this->verifyInteractions();</code></pre>
       <ol class="flow">
         <li><code>ext-ffi</code> в dev-блоке Dockerfile, образ пересобрать.</li>
         <li><code>composer require --dev pact-foundation/pact-php:^10</code>, разрешить плагин <code>composer-downloads-plugin</code>.</li>
-        <li><code>PACT_CONSUMER_NAME=&lt;имя&gt;</code> в <code>.env.test</code>; группу <code>pact-consumer</code> исключить в <code>phpunit.xml.dist</code>; <code>tests/Pact/pacts/*.json</code> в <code>.gitignore</code>.</li>
+        <li><code>PACT_CONSUMER_NAME=&lt;имя&gt;</code> в <code>.env.test</code> (сервис) или в <code>phpunit.xml.dist</code> (библиотека); группу <code>pact-consumer</code> исключить в <code>phpunit.xml.dist</code>; <code>tests/Pact/pacts/*.json</code> в <code>.gitignore</code>.</li>
         <li>Базовый класс по образцу <code>PactConsumerTestCase</code> и класс на каждый ApiProvider.</li>
-        <li>Блок Pact в Makefile: <code>pact-consumer</code>, <code>pact-publish</code>, <code>pact-can-i-deploy</code>, <code>pact-record-deployment</code>.</li>
-        <li>Workflow <code>pact-consumer.yml</code> (копия из монолита), передать на пуш админу.</li>
-        <li>В брокере: <code>create-or-update-pacticipant --name &lt;имя&gt; --main-branch development</code>.</li>
+        <li>Блок Pact в Makefile: <code>pact-consumer</code>, <code>pact-publish</code>, <code>pact-can-i-deploy</code> и <code>pact-record-deployment</code> (сервис) или <code>pact-record-release</code> (библиотека).</li>
+        <li>Workflow <code>pact-consumer.yml</code> (образец в бандле), передать на пуш админу.</li>
+        <li>В брокере: <code>create-or-update-pacticipant --name &lt;имя&gt; --main-branch &lt;trunk-ветка&gt;</code>.</li>
       </ol>
     </div>
     <div>
