@@ -106,7 +106,7 @@ dd{margin:0;color:var(--muted)}
     <dt>provider state</dt><dd>Строка <code>given('...')</code>: предусловие, которое провайдер должен создать у себя перед проверкой (строка в базе). Переменные данные идут в <code>params</code>.</dd>
     <dt>версия</dt><dd>Полный sha коммита. Под ним публикуется контракт и результат верификации. Версия в брокере неизменяема.</dd>
     <dt>ветка</dt><dd>Метка на версии: из какой ветки она собрана. Провайдер проверяет «последнюю версию из main-ветки консьюмера». Main-ветка у бандла <code>v4</code>, у payment-service <code>development</code>.</dd>
-    <dt>окружение</dt><dd><code>staging</code> и <code>production</code>. Запись «версия PS стоит в staging» делает пайплайн деплоя (<code>record-deployment</code>). Бандл не деплоится, его выпускают тегом: «версия бандла выпущена в production» записывает workflow тега (<code>record-release</code>).</dd>
+    <dt>окружение</dt><dd><code>staging</code> и <code>production</code>. Запись «версия PS стоит в staging» делает пайплайн деплоя (<code>record-deployment</code>). Бандл не деплоится, его выпускают тегом: «версия бандла выпущена в staging и production» записывает workflow тега (<code>record-release</code>).</dd>
     <dt>pending</dt><dd>Контракт, который провайдер ещё ни разу не проходил. Красный результат по нему не валит сборку провайдера: консьюмер может описывать ожидание раньше, чем провайдер его реализует.</dd>
     <dt>can-i-deploy</dt><dd>Вопрос брокеру: «версия X совместима со всем, что сейчас задеплоено в окружение Y?». Ответ зависит только от задеплоенных версий, не от веток.</dd>
   </dl>
@@ -115,7 +115,7 @@ dd{margin:0;color:var(--muted)}
 <section id="ours">
   <h2>Как устроено у нас</h2>
   <ol class="flow">
-    <li><b>Бандл</b> → workflow <code>pact-consumer.yml</code>: <code>make pact-consumer</code> пишет контракт. На PR только тесты. Push в <code>v4</code>: <code>make pact-publish</code> публикует контракт под sha коммита, ветка <code>v4</code>. Тег релиза: публикация, <code>make pact-can-i-deploy</code> («совместим с PS в production?») и, если да, <code>make pact-record-release</code>.</li>
+    <li><b>Бандл</b> → workflow <code>pact-consumer.yml</code>: <code>make pact-consumer</code> пишет контракт. На PR только тесты. Push в <code>v4</code>: <code>make pact-publish</code> публикует контракт под sha коммита, ветка <code>v4</code>. Тег релиза: публикация, <code>make pact-can-i-deploy</code> для <code>staging</code> и <code>production</code> и, если оба да, <code>make pact-record-release</code> в оба окружения.</li>
     <li><b>PR или push в payment-service</b> → workflow <code>pact-provider.yml</code>: <code>make pact-provider</code> забирает из брокера контракты по двум правилам (main-ветка бандла <code>v4</code>, выпущенные и задеплоенные версии), проверяет и публикует результат под своим sha.</li>
     <li><b>Деплой PS</b> (CodePipeline, ветка <code>release</code> = staging, <code>main</code> = production): перед сборкой <code>make pact-can-i-deploy</code>, после выкладки <code>make pact-record-deployment</code>. Этап в работе, см. план.</li>
   </ol>
@@ -124,7 +124,7 @@ dd{margin:0;color:var(--muted)}
     <tbody>
       <tr><td>бандл</td><td>PR в <code>v*</code></td><td>ничего: гоняются только тесты</td></tr>
       <tr><td>бандл</td><td>push в <code>v4</code></td><td>новая версия бандла с веткой <code>v4</code>; это main-ветка, PS в каждом своём PR проверяется против неё</td></tr>
-      <tr><td>бандл</td><td>тег релиза</td><td><code>can-i-deploy</code> против PS в production, затем <code>record-release</code>: версия считается выпущенной, PS обязан её выполнять</td></tr>
+      <tr><td>бандл</td><td>тег релиза</td><td><code>can-i-deploy</code> против PS в staging и в production, затем <code>record-release</code> в оба окружения: версия считается выпущенной, PS обязан её выполнять</td></tr>
       <tr><td>payment-service</td><td>PR, push в <code>development</code></td><td>результат верификации под sha и веткой PS</td></tr>
       <tr><td>payment-service</td><td>мердж в <code>release</code> / <code>main</code></td><td>CodePipeline: <code>can-i-deploy</code>, после выкладки <code>record-deployment</code> в <code>staging</code> / <code>production</code></td></tr>
     </tbody>
